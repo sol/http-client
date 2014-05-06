@@ -29,6 +29,10 @@ import Network.HTTP.Client.Headers
 
 import System.Timeout (timeout)
 
+import Network.HTTP.Toolkit.Body (BodyType(..), makeBodyReader)
+import Network.HTTP.Toolkit.InputStream (InputStream(..))
+import Network.HTTP.Toolkit.Response (determineResponseBodyType)
+
 -- | If a request is a redirection (status code 3xx) this function will create
 -- a new request from the old request, the server headers returned with the
 -- redirection, and the redirection code itself. This function returns 'Nothing'
@@ -99,31 +103,16 @@ getResponse connRelease timeout'' req@(Request {..}) conn = do
         toPut = Just "close" /= lookup "connection" hs && version > W.HttpVersion 1 0
         cleanup bodyConsumed = connRelease $ if toPut && bodyConsumed then Reuse else DontReuse
 
-    body <-
-        -- RFC 2616 section 4.4_1 defines responses that must not include a body
-        if hasNoBody method (W.statusCode s) || mcl == Just 0
-            then do
-                cleanup True
-                return brEmpty
-            else do
-                let isChunked = ("transfer-encoding", "chunked") `elem` hs
-                body1 <-
-                    if isChunked
-                        then makeChunkedReader rawBody conn
-                        else
-                            case mcl of
-                                Just len -> makeLengthReader len conn
-                                Nothing -> makeUnlimitedReader conn
-                body2 <- if needsGunzip req hs
-                    then makeGzipReader body1
-                    else return body1
-                return $ brAddCleanup (cleanup True) body2
+    let inputStream = InputStream (connectionRead conn) (connectionUnread conn)
+        handleGzipBody = if needsGunzip req hs then makeGzipReader else return
+
+    body <- makeBodyReader False (determineResponseBodyType method s hs) inputStream >>= handleGzipBody
 
     return Response
         { responseStatus = s
         , responseVersion = version
         , responseHeaders = hs
-        , responseBody = body
+        , responseBody = brAddCleanup (cleanup True) body
         , responseCookieJar = def
         , responseClose' = ResponseClose (cleanup False)
         }

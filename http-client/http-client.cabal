@@ -30,6 +30,7 @@ library
                      , bytestring        >= 0.9
                      , text              >= 0.11
                      , http-types        >= 0.8
+                     , http-kit          >= 0.5
                      , blaze-builder     >= 0.3
                      , data-default-class
                      , time              >= 1.2
@@ -56,7 +57,6 @@ test-suite spec
   default-language:    Haskell2010
   other-modules:       Network.HTTP.ClientSpec
                        Network.HTTP.Client.ResponseSpec
-                       Network.HTTP.Client.BodySpec
                        Network.HTTP.Client.HeadersSpec
                        Network.HTTP.Client.RequestSpec
   build-depends:       base
@@ -66,6 +66,7 @@ test-suite spec
                      , bytestring
                      , text
                      , http-types
+                     , http-kit
                      , blaze-builder
                      , time
                      , network
