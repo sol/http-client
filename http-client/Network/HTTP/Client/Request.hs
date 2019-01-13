@@ -10,6 +10,7 @@ module Network.HTTP.Client.Request
     ( parseUrl
     , parseUrlThrow
     , parseRequest
+    , parseRequestEither
     , parseRequest_
     , requestFromURI
     , requestFromURI_
@@ -17,6 +18,7 @@ module Network.HTTP.Client.Request
     , setUriRelative
     , getUri
     , setUri
+    , setUriEither
     , browserDecompress
     , alwaysDecompress
     , addProxy
@@ -147,6 +149,14 @@ parseRequest s' =
             Nothing -> req
             Just m -> req { method = S8.pack m }
 
+parseRequestEither :: String -> Either String Request
+parseRequestEither url =
+    case parseURI (encode url) of
+        Just uri -> setUriEither defaultRequest uri
+        Nothing  -> Left "Invalid URL"
+  where
+    encode = escapeURIString isAllowedInURI
+
 -- | Same as 'parseRequest', but parse errors cause an impure exception.
 -- Mostly useful for static strings which are known to be correctly
 -- formatted.
@@ -226,9 +236,15 @@ extractBasicAuthInfo uri = do
 
 -- | Validate a 'URI', then add it to the request.
 setUri :: MonadThrow m => Request -> URI -> m Request
-setUri req uri = do
+setUri req uri = either throwInvalidUrlException return (setUriEither req uri)
+  where
+    throwInvalidUrlException = throwM . InvalidUrlException (show uri)
+
+-- | Validate a 'URI', then add it to the request.
+setUriEither :: Request -> URI -> Either String Request
+setUriEither req uri = do
     sec <- parseScheme uri
-    auth <- maybe (failUri "URL must be absolute") return $ uriAuthority uri
+    auth <- maybe (Left "URL must be absolute") return $ uriAuthority uri
     port' <- parsePort sec auth
     return $ applyAnyUriBasedAuth uri req
         { host = S8.pack $ uriRegName auth
@@ -241,20 +257,17 @@ setUri req uri = do
         , queryString = S8.pack $ uriQuery uri
         }
   where
-    failUri :: MonadThrow m => String -> m a
-    failUri = throwM . InvalidUrlException (show uri)
-
     parseScheme URI{uriScheme = scheme} =
         case map toLower scheme of
             "http:"  -> return False
             "https:" -> return True
-            _        -> failUri "Invalid scheme"
+            _        -> Left "Invalid scheme"
 
     parsePort sec URIAuth{uriPort = portStr} =
         case portStr of
             -- If the user specifies a port, then use it
             ':':rest -> maybe
-                (failUri "Invalid port")
+                (Left "Invalid port")
                 return
                 (readDec rest)
             -- Otherwise, use the default port
