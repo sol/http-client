@@ -133,19 +133,16 @@ throwErrorStatusCodes req res = do
 --
 -- @since 0.4.30
 parseRequest :: MonadThrow m => String -> m Request
-parseRequest s' =
-    case parseURI (encode s) of
-        Just uri -> liftM setMethod (setUri defaultRequest uri)
-        Nothing  -> throwM $ InvalidUrlException s "Invalid URL"
+parseRequest s' = either throwInvalidUrlException setMethod (parseRequestEither s)
   where
-    encode = escapeURIString isAllowedInURI
+    throwInvalidUrlException = throw . InvalidUrlException s
     (mmethod, s) =
         case break (== ' ') s' of
             (x, ' ':y) | all (\c -> 'A' <= c && c <= 'Z') x -> (Just x, y)
             _ -> (Nothing, s')
 
     setMethod req =
-        case mmethod of
+        return $ case mmethod of
             Nothing -> req
             Just m -> req { method = S8.pack m }
 
