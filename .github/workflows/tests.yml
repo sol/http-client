@@ -20,11 +20,15 @@ jobs:
         - "--resolver lts-19"
         - "--resolver lts-18"
         - "--resolver lts-17"
-        - "--resolver lts-16"
 
     steps:
       - name: Clone project
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+
+      - uses: haskell-actions/setup@v2
+        with:
+          stack-version: latest
+          enable-stack: true
 
 # Getting weird OS X errors...
 #      - name: Cache dependencies
