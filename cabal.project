@@ -5,3 +5,4 @@ packages:
   http-conduit
 
 tests: True
+benchmarks: False
