@@ -30,8 +30,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: Install OpenSSL
-        run: brew install openssl
+      - run: which -a pkg-config
+      - run: pkg-config --list-all | grep openssl
+      - run: export PKG_CONFIG_PATH="$(brew --prefix openssl)/lib/pkgconfig"
+      - run: pkg-config --list-all | grep openssl
       - name: Set OpenSSL Paths
         run: |
           echo "CPATH=$(brew --prefix openssl)/include" >> $GITHUB_ENV
