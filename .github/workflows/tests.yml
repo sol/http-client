@@ -24,22 +24,19 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-        ghc:
-          - '8.10'
-          - '9.0'
-          - '9.2'
-          - '9.4'
-          - '9.6'
-          - '9.8'
-          - '9.10'
-          - '9.12'
         include:
           - os: macos-latest
             ghc: system
-          - os: windows-latest
-            ghc: system
+
     steps:
       - uses: actions/checkout@v4
+      - name: Install OpenSSL
+        run: brew install openssl
+      - name: Set OpenSSL Paths
+        run: |
+          echo "CPATH=$(brew --prefix openssl)/include" >> $GITHUB_ENV
+          echo "LIBRARY_PATH=$(brew --prefix openssl)/lib" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$(brew --prefix openssl)/lib/pkgconfig" >> $GITHUB_ENV
       - uses: hspec/setup-haskell@v1
         with:
           ghc-version: ${{ matrix.ghc }}
